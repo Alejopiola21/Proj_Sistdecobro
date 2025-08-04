@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Proyecto: Sistema de Cobro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals & Muted Green -->
+    <!-- Application Structure Plan: Se ha diseñado una aplicación de una sola página con desplazamiento vertical, dividida en secciones que corresponden a cada fase de la hoja de ruta. Una barra de navegación lateral fija permite saltar a cualquier fase, facilitando la navegación. Cada fase contiene tarjetas interactivas y listas de tareas con estados (Pendiente, En Progreso, Completo) que el usuario puede cambiar. Esta estructura fue elegida porque el desarrollo de un proyecto es un proceso secuencial, y este diseño permite a los interesados ver tanto el panorama general (con el gráfico de Gantt) como los detalles específicos de cada etapa de una manera organizada e interactiva, convirtiendo un plan estático en una herramienta de seguimiento dinámica. -->
+    <!-- Visualization & Content Choices: 
+        - Resumen del Proyecto -> Informar -> Gráfico de Gantt (Chart.js) -> El gráfico muestra la duración estimada de cada fase, ofreciendo una vista rápida del cronograma completo. Justificación: Un Gantt es el estándar para la visualización de cronogramas de proyectos.
+        - Fases (1-5) -> Organizar/Informar -> Secciones con tarjetas y listas interactivas (HTML/CSS/JS) -> El usuario puede hacer clic en los estados de las tareas para actualizarlos, lo que proporciona una sensación de progreso y control. Justificación: Las listas de tareas interactivas son más atractivas y útiles para el seguimiento que el texto estático.
+        - Tecnologías -> Comparar/Informar -> Tarjetas interactivas (HTML/CSS/JS) -> Al hacer clic, se revela una breve justificación de la tecnología elegida. Justificación: Fomenta la exploración y mantiene la interfaz limpia, mostrando detalles solo cuando se solicitan.
+        - Diseño UI -> Visualizar -> Maquetas simples (HTML/CSS) -> Se utilizan elementos HTML estilizados para simular los bocetos de la interfaz. Justificación: Proporciona una representación visual concreta de lo que se describe en el texto, mejorando la comprensión. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F7F4;
+            color: #3D3D3D;
+        }
+        .task-status {
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .status-pending { background-color: #E0E0E0; color: #616161; }
+        .status-progress { background-color: #BBDEFB; color: #1565C0; }
+        .status-done { background-color: #C8E6C9; color: #2E7D32; text-decoration: line-through; }
+        .nav-link {
+            transition: all 0.2s ease-in-out;
+            border-left: 3px solid transparent;
+        }
+        .nav-link.active, .nav-link:hover {
+            background-color: #E8E5E1;
+            border-left-color: #4A6C6F;
+            color: #4A6C6F;
+            font-weight: 500;
+        }
+        .tech-card {
+            transition: all 0.3s ease-in-out;
+            cursor: pointer;
+        }
+        .tech-card .details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        .tech-card.open .details {
+            max-height: 200px;
+        }
+    </style>
+</head>
+<body class="scroll-smooth">
+
+    <div class="flex">
+        <aside class="w-64 h-screen sticky top-0 bg-[#EFEBE9] p-4 hidden lg:block">
+            <h2 class="text-xl font-bold text-[#4A6C6F] mb-6">Fases del Proyecto</h2>
+            <nav id="side-nav" class="flex flex-col space-y-2">
+                <a href="#timeline" class="nav-link p-2 rounded-r-md">Cronograma</a>
+                <a href="#phase1" class="nav-link p-2 rounded-r-md">1. Planificación</a>
+                <a href="#phase2" class="nav-link p-2 rounded-r-md">2. Diseño</a>
+                <a href="#phase3" class="nav-link p-2 rounded-r-md">3. Desarrollo</a>
+                <a href="#phase4" class="nav-link p-2 rounded-r-md">4. Pruebas</a>
+                <a href="#phase5" class="nav-link p-2 rounded-r-md">5. Mantenimiento</a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 p-4 md:p-10">
+            <header class="mb-10">
+                <h1 class="text-4xl font-bold text-[#4A6C6F] mb-2">Panel de Proyecto: Sistema de Cobro</h1>
+                <p class="text-lg text-gray-600">Una hoja de ruta interactiva para el desarrollo del sistema de gestión de cuotas del complejo.</p>
+            </header>
+
+            <section id="timeline" class="mb-12 scroll-mt-20">
+                <h2 class="text-3xl font-bold mb-4 border-b-2 border-[#4A6C6F] pb-2">Cronograma del Proyecto</h2>
+                <p class="mb-6 text-gray-700">Esta es una estimación visual de la duración de cada fase del proyecto. El cronograma ayuda a entender la distribución del trabajo a lo largo del tiempo y a gestionar las expectativas sobre las fechas de entrega. Cada barra representa una fase clave del desarrollo.</p>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="chart-container relative w-full max-w-4xl mx-auto h-96">
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section id="phase1" class="mb-12 scroll-mt-20">
+                <h2 class="text-3xl font-bold mb-4 border-b-2 border-[#4A6C6F] pb-2">Fase 1: Planificación y Definición</h2>
+                <p class="mb-6 text-gray-700">Esta es la fase fundamental donde se establecen las bases del proyecto. Definir correctamente los requisitos y elegir las tecnologías adecuadas es crucial para evitar problemas en etapas posteriores y asegurar que el producto final cumpla con los objetivos.</p>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-bold mb-4">Requisitos del Sistema</h3>
+                        <ul class="space-y-3">
+                            <li class="flex items-start"><span class="text-[#4A6C6F] mr-2">➔</span><div><strong class="font-semibold">Búsqueda:</strong> Por nombre completo o DNI.</div></li>
+                            <li class="flex items-start"><span class="text-[#4A6C6F] mr-2">➔</span><div><strong class="font-semibold">Visualización Clara:</strong> Estado de cuota, vencimiento, fecha de renovación y contador de pagos.</div></li>
+                            <li class="flex items-start"><span class="text-[#4A6C6F] mr-2">➔</span><div><strong class="font-semibold">Gestión de Datos:</strong> Registrar, editar y finalizar membresías y pagos.</div></li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-bold mb-4">Tecnologías a Elegir</h3>
+                        <p class="text-sm text-gray-600 mb-4">Haz clic en cada tecnología para ver más detalles.</p>
+                        <div class="space-y-4">
+                            <div class="tech-card border rounded-lg p-4">
+                                <h4 class="font-semibold">Base de Datos: SQLite</h4>
+                                <div class="details text-sm text-gray-700 mt-2">
+                                    <p>Ideal para un inicio rápido. Es una base de datos simple basada en un solo archivo, perfecta para proyectos pequeños o medianos sin necesidad de un servidor de base de datos complejo.</p>
+                                </div>
+                            </div>
+                            <div class="tech-card border rounded-lg p-4">
+                                <h4 class="font-semibold">Backend: Python (Flask)</h4>
+                                <div class="details text-sm text-gray-700 mt-2">
+                                    <p>Flask es un micro-framework minimalista y fácil de aprender. Permite desarrollar la lógica del servidor de forma rápida y eficiente, ideal para crear APIs y gestionar la lógica de negocio.</p>
+                                </div>
+                            </div>
+                            <div class="tech-card border rounded-lg p-4">
+                                <h4 class="font-semibold">Frontend: HTML, CSS, JS</h4>
+                                <div class="details text-sm text-gray-700 mt-2">
+                                    <p>Para una interfaz funcional y sin complicaciones, las tecnologías web estándar son suficientes. Proporcionan control total sobre el diseño y la interactividad sin la sobrecarga de un framework pesado.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="phase2" class="mb-12 scroll-mt-20">
+                <h2 class="text-3xl font-bold mb-4 border-b-2 border-[#4A6C6F] pb-2">Fase 2: Diseño del Sistema</h2>
+                <p class="mb-6 text-gray-700">En esta fase se traduce la planificación en un plan tangible. Se diseña la estructura de la base de datos que almacenará toda la información y se crean los bocetos visuales de la interfaz con la que interactuarán los usuarios.</p>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-bold mb-4">Diseño de Base de Datos</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <h4 class="font-semibold">Tabla `miembros`</h4>
+                                <p class="text-sm text-gray-600">Campos: id, nombre, dni, fecha_renovacion, estado.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold">Tabla `pagos`</h4>
+                                <p class="text-sm text-gray-600">Campos: id, miembro_id, fecha_pago, monto.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-bold mb-4">Diseño de Interfaz (UI) - Boceto</h3>
+                        <div class="border rounded-lg p-4 space-y-4 bg-gray-50">
+                            <div class="flex space-x-2">
+                                <input type="text" placeholder="Buscar por Nombre o DNI..." class="flex-grow p-2 border rounded-md">
+                                <button class="bg-[#4A6C6F] text-white px-4 py-2 rounded-md">Buscar</button>
+                            </div>
+                            <div class="border rounded-lg p-4 bg-green-100 border-green-300">
+                                <h4 class="font-bold text-green-800">Juan Pérez</h4>
+                                <p class="text-sm text-green-700">Estado: <span class="font-semibold">Al día</span></p>
+                                <p class="text-sm text-green-700">Vence: 31/08/2025</p>
+                            </div>
+                            <div class="border rounded-lg p-4 bg-red-100 border-red-300">
+                                <h4 class="font-bold text-red-800">Ana Gómez</h4>
+                                <p class="text-sm text-red-700">Estado: <span class="font-semibold">Vencida</span></p>
+                                <p class="text-sm text-red-700">Venció: 31/07/2025</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="phase3" class="mb-12 scroll-mt-20">
+                <h2 class="text-3xl font-bold mb-4 border-b-2 border-[#4A6C6F] pb-2">Fase 3: Desarrollo y Programación</h2>
+                 <p class="mb-6 text-gray-700">¡Manos a la obra! Aquí es donde las ideas y diseños se convierten en código funcional. Se divide el trabajo en Backend (la lógica que ocurre en el servidor) y Frontend (la interfaz que el usuario ve y utiliza).</p>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-bold mb-4">Lista de Tareas de Desarrollo</h3>
+                    <p class="text-sm text-gray-600 mb-4">Haz clic en el estado para cambiarlo: Pendiente ➔ En Progreso ➔ Completo.</p>
+                    <div class="space-y-3">
+                        <div class="task-item flex justify-between items-center p-3 border-b">
+                            <span><strong>Backend:</strong> Configurar entorno y base de datos.</span>
+                            <span class="task-status status-pending text-xs font-semibold px-2 py-1 rounded-full">Pendiente</span>
+                        </div>
+                        <div class="task-item flex justify-between items-center p-3 border-b">
+                            <span><strong>Backend:</strong> Programar lógica de negocio (cálculo de estado, etc.).</span>
+                            <span class="task-status status-pending text-xs font-semibold px-2 py-1 rounded-full">Pendiente</span>
+                        </div>
+                        <div class="task-item flex justify-between items-center p-3 border-b">
+                            <span><strong>Frontend:</strong> Crear esqueleto HTML y estilos CSS.</span>
+                            <span class="task-status status-pending text-xs font-semibold px-2 py-1 rounded-full">Pendiente</span>
+                        </div>
+                        <div class="task-item flex justify-between items-center p-3 border-b">
+                            <span><strong>Frontend:</strong> Añadir funcionalidad con JavaScript (búsqueda, mostrar datos).</span>
+                            <span class="task-status status-pending text-xs font-semibold px-2 py-1 rounded-full">Pendiente</span>
+                        </div>
+                         <div class="task-item flex justify-between items-center p-3 border-b">
+                            <span><strong>Integración:</strong> Conectar Frontend con Backend.</span>
+                            <span class="task-status status-pending text-xs font-semibold px-2 py-1 rounded-full">Pendiente</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="phase4" class="mb-12 scroll-mt-20">
+                <h2 class="text-3xl font-bold mb-4 border-b-2 border-[#4A6C6F] pb-2">Fase 4: Pruebas y Despliegue</h2>
+                <p class="mb-6 text-gray-700">Una vez desarrollado, el sistema debe ser probado exhaustivamente para asegurar su calidad y corregir errores. Después de las pruebas, se prepara y se pone en marcha en un servidor para que los usuarios finales puedan acceder a él.</p>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-bold mb-4">Lista de Tareas de Pruebas y Despliegue</h3>
+                    <div class="space-y-3">
+                        <div class="task-item flex justify-between items-center p-3 border-b">
+                            <span><strong>Pruebas:</strong> Probar cada funcionalidad (búsqueda, registro, etc.).</span>
+                            <span class="task-status status-pending text-xs font-semibold px-2 py-1 rounded-full">Pendiente</span>
+                        </div>
+                        <div class="task-item flex justify-between items-center p-3 border-b">
+                            <span><strong>Pruebas:</strong> Realizar pruebas de usabilidad con un usuario.</span>
+                            <span class="task-status status-pending text-xs font-semibold px-2 py-1 rounded-full">Pendiente</span>
+                        </div>
+                        <div class="task-item flex justify-between items-center p-3 border-b">
+                            <span><strong>Corrección:</strong> Arreglar todos los errores encontrados.</span>
+                            <span class="task-status status-pending text-xs font-semibold px-2 py-1 rounded-full">Pendiente</span>
+                        </div>
+                        <div class="task-item flex justify-between items-center p-3 border-b">
+                            <span><strong>Despliegue:</strong> Subir la aplicación a un servidor.</span>
+                            <span class="task-status status-pending text-xs font-semibold px-2 py-1 rounded-full">Pendiente</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="phase5" class="scroll-mt-20">
+                <h2 class="text-3xl font-bold mb-4 border-b-2 border-[#4A6C6F] pb-2">Fase 5: Mantenimiento y Futuras Mejoras</h2>
+                <p class="mb-6 text-gray-700">El proyecto no termina con el lanzamiento. Es vital realizar un mantenimiento continuo para asegurar que el sistema siga funcionando correctamente y planificar futuras mejoras que añadan más valor a la herramienta.</p>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-bold mb-4">Mantenimiento</h3>
+                        <ul class="space-y-2 list-disc list-inside text-gray-700">
+                            <li>Realizar copias de seguridad periódicas.</li>
+                            <li>Monitorear el rendimiento del servidor.</li>
+                            <li>Actualizar dependencias de seguridad.</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-bold mb-4">Futuras Mejoras</h3>
+                        <ul class="space-y-2 list-disc list-inside text-gray-700">
+                            <li>Generación de reportes de ingresos.</li>
+                            <li>Notificaciones automáticas de vencimiento.</li>
+                            <li>Integración con pasarelas de pago online.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const statuses = ['Pendiente', 'En Progreso', 'Completo'];
+            const statusClasses = ['status-pending', 'status-progress', 'status-done'];
+
+            document.querySelectorAll('.task-status').forEach(statusEl => {
+                statusEl.addEventListener('click', () => {
+                    let currentIndex = statuses.indexOf(statusEl.textContent);
+                    let nextIndex = (currentIndex + 1) % statuses.length;
+
+                    statusEl.textContent = statuses[nextIndex];
+                    statusEl.classList.remove(...statusClasses);
+                    statusEl.classList.add(statusClasses[nextIndex]);
+                });
+            });
+
+            document.querySelectorAll('.tech-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    card.classList.toggle('open');
+                });
+            });
+
+            const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+            const timelineChart = new Chart(timelineCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Fase 1: Planificación', 'Fase 2: Diseño', 'Fase 3: Desarrollo', 'Fase 4: Pruebas', 'Fase 5: Mantenimiento'],
+                    datasets: [{
+                        label: 'Semanas Estimadas',
+                        data: [
+                            [0, 2], 
+                            [2, 4], 
+                            [4, 8], 
+                            [8, 10], 
+                            [10, 12]
+                        ],
+                        backgroundColor: [
+                            'rgba(74, 108, 111, 0.6)',
+                            'rgba(118, 145, 148, 0.6)',
+                            'rgba(162, 182, 184, 0.6)',
+                            'rgba(206, 219, 220, 0.6)',
+                            'rgba(74, 108, 111, 0.4)'
+                        ],
+                        borderColor: [
+                            'rgba(74, 108, 111, 1)',
+                            'rgba(118, 145, 148, 1)',
+                            'rgba(162, 182, 184, 1)',
+                            'rgba(206, 219, 220, 1)',
+                            'rgba(74, 108, 111, 1)'
+                        ],
+                        borderWidth: 1,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    return `Semanas ${value[0]} a ${value[1]}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Semanas'
+                            }
+                        }
+                    }
+                }
+            });
+
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('#side-nav a');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        navLinks.forEach(link => {
+                            link.classList.remove('active');
+                            if (link.getAttribute('href').substring(1) === entry.target.id) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }, { rootMargin: "-50% 0px -50% 0px" });
+
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+        });
+    </script>
+</body>
+</html>
